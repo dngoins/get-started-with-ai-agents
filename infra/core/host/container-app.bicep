@@ -113,7 +113,12 @@ resource app 'Microsoft.App/containerApps@2023-05-02-preview' = {
         value: secret.value
       }]
       service: !empty(serviceType) ? { type: serviceType } : null
-      registries: []
+      registries: [
+        {
+          server: 'acr01octodevrd01.azurecr.io'
+          identity: !empty(identityName) ? userIdentity.id : ''
+        }
+      ]
     }
     template: {
       serviceBinds: !empty(serviceBinds) ? serviceBinds : null
