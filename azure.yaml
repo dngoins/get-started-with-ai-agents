@@ -30,6 +30,14 @@ hooks:
       continueOnError: true
       interactive: true
 
+services:
+  api:
+    project: ./src
+    host: containerapp
+    language: python
+    docker:
+      registry: acr01octodevrd01.azurecr.io
+
 pipeline:
   variables:
     - AZURE_RESOURCE_GROUP

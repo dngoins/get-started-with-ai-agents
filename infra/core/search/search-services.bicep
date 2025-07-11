@@ -8,9 +8,12 @@ param sku object = {
   name: 'standard'
 }
 
-param authOptions object = {}
-param disableLocalAuth bool = false
-param disabledDataExfiltrationOptions array = []
+param authOptions object = {
+  aadOrApiKey: {
+    aadAuthFailureMode: 'http401WithBearerChallenge'
+  }
+}
+param disableLocalAuth bool = true
 param encryptionWithCmk object = {
   enforcement: 'Unspecified'
 }
@@ -44,7 +47,7 @@ var searchIdentityProvider = (sku.name == 'free') ? null : {
 
 
 
-resource search 'Microsoft.Search/searchServices@2024-06-01-preview' = {
+resource search 'Microsoft.Search/searchServices@2023-11-01' = {
   name: name
   location: location
   tags: tags  
@@ -53,9 +56,8 @@ resource search 'Microsoft.Search/searchServices@2024-06-01-preview' = {
   }
   identity: searchIdentityProvider  
   properties: {
-    authOptions: authOptions
+    authOptions: disableLocalAuth ? null : authOptions
     disableLocalAuth: disableLocalAuth
-    disabledDataExfiltrationOptions: disabledDataExfiltrationOptions
     encryptionWithCmk: encryptionWithCmk
     hostingMode: hostingMode
     networkRuleSet: networkRuleSet

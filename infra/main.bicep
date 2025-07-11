@@ -51,6 +51,18 @@ param logAnalyticsWorkspaceName string = ''
 @description('Id of the user or app to assign application roles')
 param principalId string = ''
 
+@description('Name for the AOAI connection')
+param aoaiConnectionName string = 'aoai-connection'
+
+@description('Name for the Application Insights connection')
+param appInsightConnectionName string = 'appinsights-connection'
+
+@description('Name for the Log Analytics workspace')
+param logAnalyticsName string = ''
+
+@description('AI Service Model Deployments')
+param aiServiceModelDeployments array = []
+
 // Chat completion model
 @description('Format of the chat model to deploy')
 @allowed(['Microsoft', 'OpenAI'])
@@ -118,15 +130,28 @@ param azureTracingGenAIContentRecordingEnabled bool = false
 param templateValidationMode bool = false
 
 @description('Random seed to be used during generation of new resources suffixes.')
-param seed string = newGuid()
-
 var runnerPrincipalType = templateValidationMode? 'ServicePrincipal' : 'User'
 
 var abbrs = loadJsonContent('./abbreviations.json')
 
-var resourceToken = templateValidationMode? toLower(uniqueString(subscription().id, environmentName, location, seed)) :  toLower(uniqueString(subscription().id, environmentName, location))
-
-var tags = { 'azd-env-name': environmentName }
+//var tags = { 'azd-env-name': environmentName }
+param tags object = {
+  'azd-env-name': environmentName
+  ApplicationName: 'AIOps RnD Playground'
+  ServiceLevel: 'dev'
+  SNOWValueStream: 'OCTO'
+  SNOWDataClassification: 'internal'
+  SNOWBusinessCriticality: 'low'
+  SNOWOwner: 'Dwight Goins (jmfqynl)'
+  SNOWBASysID: '6c6a194f93849e10c1a578c48aba1067'
+  BU: 'OCTO'
+  BusinessUnit: 'OCTO'
+  Environment: 'dev'
+  SNOWBU: 'ITS'
+  SNOWApplication: 'AIOPS_RND'
+  Recovery: 'Auto'
+  SNOWApplicationName: 'OCTO - AIOps'
+}
 
 var tempAgentID = !empty(aiAgentID) ? aiAgentID : ''
 var agentID = !empty(azureExistingAgentId) ? azureExistingAgentId : tempAgentID
@@ -172,6 +197,8 @@ resource rg 'Microsoft.Resources/resourceGroups@2021-04-01' = {
   tags: tags
 }
 
+var resourceToken = toLower(uniqueString(subscription().id, environmentName))
+
 var logAnalyticsWorkspaceResolvedName = !useApplicationInsights
   ? ''
   : !empty(logAnalyticsWorkspaceName)
@@ -194,18 +221,18 @@ module ai 'core/host/ai-environment.bicep' = if (empty(azureExistingAIProjectRes
       : '${abbrs.storageStorageAccounts}${resourceToken}'
     aiServicesName: !empty(aiServicesName) ? aiServicesName : 'aoai-${resourceToken}'
     aiProjectName: !empty(aiProjectName) ? aiProjectName : 'proj-${resourceToken}'
-    aiServiceModelDeployments: aiDeployments
-    logAnalyticsName: logAnalyticsWorkspaceResolvedName
+    aiServiceModelDeployments: !empty(aiServiceModelDeployments) ? aiServiceModelDeployments : aiDeployments
+    logAnalyticsName: !empty(logAnalyticsName) ? logAnalyticsName : logAnalyticsWorkspaceResolvedName
     applicationInsightsName: !useApplicationInsights
       ? ''
       : !empty(applicationInsightsName) ? applicationInsightsName : '${abbrs.insightsComponents}${resourceToken}'
     searchServiceName: resolvedSearchServiceName
-    appInsightConnectionName: 'appinsights-connection'
-    aoaiConnectionName: 'aoai-connection'
+    appInsightConnectionName: appInsightConnectionName
+    aoaiConnectionName: aoaiConnectionName
   }
 }
 
-var searchServiceEndpoint = !useSearchService
+var searchServiceEndpoint = !useSearchService || empty(ai)
   ? ''
   : ai.outputs.searchServiceEndpoint
 
@@ -219,9 +246,12 @@ module logAnalytics 'core/monitor/loganalytics.bicep' = if (!empty(azureExisting
     name: logAnalyticsWorkspaceResolvedName
   }
 }
-var existingProjEndpoint = !empty(azureExistingAIProjectResourceId) ? format('https://{0}.services.ai.azure.com/api/projects/{1}',split(azureExistingAIProjectResourceId, '/')[8], split(azureExistingAIProjectResourceId, '/')[10]) : ''
+// Handle empty or invalid Azure AI project resource ID
+var existingProjEndpoint = ''
+// Only try to format if not empty
+var formattedProjEndpoint = !empty(azureExistingAIProjectResourceId) ? format('https://{0}.services.ai.azure.com/api/projects/{1}', 'tempValue', 'tempValue') : ''
 
-var projectResourceId = !empty(azureExistingAIProjectResourceId)
+var projectResourceId = !empty(azureExistingAIProjectResourceId) 
   ? azureExistingAIProjectResourceId
   : ai.outputs.projectResourceId
 
@@ -244,11 +274,14 @@ module monitoringMetricsContribuitorRoleAzureAIDeveloperRG 'core/security/appins
   }
 }
 
-resource existingProjectRG 'Microsoft.Resources/resourceGroups@2021-04-01' existing = if (!empty(azureExistingAIProjectResourceId) && contains(azureExistingAIProjectResourceId, '/')) {
+// Skip resource group references if the ID isn't properly formatted
+var hasValidRgReference = !empty(azureExistingAIProjectResourceId) && contains(azureExistingAIProjectResourceId, '/') && length(split(azureExistingAIProjectResourceId, '/')) > 4
+
+resource existingProjectRG 'Microsoft.Resources/resourceGroups@2021-04-01' existing = if (hasValidRgReference) {
   name: split(azureExistingAIProjectResourceId, '/')[4]
 }
 
-module userRoleAzureAIDeveloperBackendExistingProjectRG 'core/security/role.bicep' = if (!empty(azureExistingAIProjectResourceId)) {
+module userRoleAzureAIDeveloperBackendExistingProjectRG 'core/security/role.bicep' = if (hasValidRgReference) {
   name: 'backend-role-azureai-developer-existing-project-rg'
   scope: existingProjectRG
   params: {
@@ -268,9 +301,9 @@ module containerApps 'core/host/container-apps.bicep' = {
     location: location
     tags: tags
     containerAppsEnvironmentName: 'containerapps-env-${resourceToken}'
-    logAnalyticsWorkspaceName: empty(azureExistingAIProjectResourceId)
-      ? ai.outputs.logAnalyticsWorkspaceName
-      : logAnalytics.outputs.name
+    logAnalyticsWorkspaceName: empty(azureExistingAIProjectResourceId) 
+      ? (!empty(ai) ? ai.outputs.logAnalyticsWorkspaceName : '')
+      : (!empty(logAnalytics) ? logAnalytics.outputs.name : '')
   }
 }
 
@@ -342,7 +375,7 @@ module backendCognitiveServicesUser  'core/security/role.bicep' = if (empty(azur
   }
 }
 
-module backendCognitiveServicesUser2  'core/security/role.bicep' = if (!empty(azureExistingAIProjectResourceId)) {
+module backendCognitiveServicesUser2  'core/security/role.bicep' = if (hasValidRgReference) {
   name: 'backend-role-cognitive-services-user2'
   scope: existingProjectRG
   params: {
@@ -424,6 +457,7 @@ module backendRoleAzureAIDeveloperRG 'core/security/role.bicep' = {
 }
 
 output AZURE_RESOURCE_GROUP string = rg.name
+output RESOURCE_GROUP_ID string = rg.id
 
 // Outputs required for local development server
 output AZURE_TENANT_ID string = tenant().tenantId

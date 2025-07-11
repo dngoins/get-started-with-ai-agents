@@ -12,7 +12,7 @@
       "value": "${AZURE_PRINCIPAL_ID}"
     },
     "resourceGroupName": {
-      "value": "${AZURE_RESOURCE_GROUP}"
+      "value": "rg-${AZURE_ENV_NAME}"
     },
     "aiHubName": {
       "value": "${AZURE_AIHUB_NAME}"
@@ -37,6 +37,18 @@
     },
     "storageAccountName": {
       "value": "${AZURE_STORAGE_ACCOUNT_NAME}"
+    },
+    "logAnalyticsName": {
+      "value": "${AZURE_LOG_ANALYTICS_NAME}"
+    },
+    "aoaiConnectionName": {
+      "value": "${AZURE_AOAI_CONNECTION_NAME=aoai-connection}"
+    },
+    "appInsightConnectionName": {
+      "value": "${AZURE_APPINSIGHT_CONNECTION_NAME=appinsights-connection}"
+    },
+    "aiServiceModelDeployments": {
+      "value": []
     },
     "logAnalyticsWorkspaceName": {
       "value": "${AZURE_LOG_ANALYTICS_WORKSPACE_NAME}"

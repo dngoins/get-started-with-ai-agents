@@ -3,7 +3,7 @@ param aiServiceName string
 param aiProjectName string
 param location string = resourceGroup().location
 param tags object = {}
-@description('The custom subdomain name used to access the API. Defaults to the value of the name parameter.')
+
 param customSubDomainName string = aiServiceName
 param disableLocalAuth bool = true
 param deployments array = []
@@ -117,9 +117,9 @@ resource aiServicesDeployments 'Microsoft.CognitiveServices/accounts/deployments
   name: deployment.name
   properties: {
     model: deployment.model
-    raiPolicyName: contains(deployment, 'raiPolicyName') ? deployment.raiPolicyName : null
+    raiPolicyName: deployment.?raiPolicyName
   }
-  sku: contains(deployment, 'sku') ? deployment.sku : {
+  sku: deployment.?sku ?? {
     name: 'Standard'
     capacity: 20
   }

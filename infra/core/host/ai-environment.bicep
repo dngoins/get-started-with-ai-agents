@@ -96,7 +96,7 @@ module cognitiveServices '../ai/cognitiveservices.bicep' = {
   }
 }
 
-module accountStorageRoleAssignment  '../../core/security/role.bicep' = {
+module accountStorageRoleAssignment  '../security/role.bicep' = {
   name: 'ai-account-role-storage-contributor'
   params: {
     principalType: 'ServicePrincipal'
@@ -105,7 +105,7 @@ module accountStorageRoleAssignment  '../../core/security/role.bicep' = {
   }
 }
 
-module projectStorageRoleAssignment  '../../core/security/role.bicep' = {
+module projectStorageRoleAssignment  '../security/role.bicep' = {
   name: 'ai-project-role-storage-contributor'
   params: {
     principalType: 'ServicePrincipal'

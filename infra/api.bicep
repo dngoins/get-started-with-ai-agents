@@ -89,7 +89,7 @@ module app 'core/host/container-app-upsert.bicep' = {
   params: {
     name: name
     location: location
-    tags: tags
+    tags: union(tags, { 'azd-service-name': 'api' })
     identityName: apiIdentity.name
     containerAppsEnvironmentName: containerAppsEnvironmentName
     targetPort: 50505

@@ -11,11 +11,11 @@ RUN pip install --no-cache-dir --upgrade -r requirements.txt
 
 # Install Node.js and pnpm with specific versions
 RUN apt-get update \
-    && apt-get install -y curl \
-    && curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
-    && apt-get install -y nodejs \
+    && apt-get install -y ca-certificates nodejs npm \
+    && npm config set strict-ssl false \
     && npm install -g pnpm@10.4.1 \
     && node --version \
+    && npm --version \
     && pnpm --version
 
 # Build React frontend
